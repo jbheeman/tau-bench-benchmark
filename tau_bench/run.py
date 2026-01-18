@@ -19,7 +19,7 @@ from tau_bench.envs.user import UserStrategy
 
 def run(config: RunConfig) -> List[EnvRunResult]:
     assert config.env in ["retail", "airline"], "Only retail and airline envs are supported"
-    assert config.model_provider in provider_list, "Invalid model provider"
+    assert config.model_provider in provider_list or config.model_provider == "local_hf", "Invalid model provider"
     assert config.user_model_provider in provider_list, "Invalid user model provider"
     assert config.agent_strategy in ["tool-calling", "act", "react", "few-shot"], "Invalid agent strategy"
     assert config.task_split in ["train", "test", "dev"], "Invalid task split"
@@ -27,7 +27,8 @@ def run(config: RunConfig) -> List[EnvRunResult]:
 
     random.seed(config.seed)
     time_str = datetime.now().strftime("%m%d%H%M%S")
-    ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}_range_{config.start_index}-{config.end_index}_user-{config.user_model}-{config.user_strategy}_{time_str}.json"
+    attempt_suffix = f"_attempt-{config.attempt_id}" if config.attempt_id else ""
+    ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}_range_{config.start_index}-{config.end_index}_user-{config.user_model}-{config.user_strategy}{attempt_suffix}_{time_str}.json"
     if not os.path.exists(config.log_dir):
         os.makedirs(config.log_dir)
 
@@ -56,6 +57,14 @@ def run(config: RunConfig) -> List[EnvRunResult]:
             f"Running tasks {config.start_index} to {end_index} (checkpoint path: {ckpt_path})"
     )
     for i in range(config.num_trials):
+        # Sample new perturbations for this trial (Best of N)
+        # Skip bias sampling for the first attempt (i == 0)
+        if i > 0 and config.model_provider == "local_hf" and hasattr(agent, 'sample_perturbations'):
+            agent.sample_perturbations()
+            print(f"Trial {i+1}/{config.num_trials}: Sampled new perturbations")
+        elif i == 0 and config.model_provider == "local_hf":
+            print(f"Trial {i+1}/{config.num_trials}: No bias sampling (first attempt)")
+        
         if config.task_ids and len(config.task_ids) > 0:
             idxs = config.task_ids
         else:
@@ -72,6 +81,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                 user_provider=config.user_model_provider,
                 task_index=idx,
             )
+
 
             print(f"Running task {idx}")
             try:
@@ -112,6 +122,12 @@ def run(config: RunConfig) -> List[EnvRunResult]:
         with ThreadPoolExecutor(max_workers=config.max_concurrency) as executor:
             res = list(executor.map(_run, idxs))
             results.extend(res)
+        
+        # Reset perturbations after trial completes (optional, for cleanup)
+        if config.model_provider == "local_hf" and hasattr(agent, 'reset_perturbations'):
+            # Don't reset here - we want to keep them for potential debugging
+            # agent.reset_perturbations()
+            pass
 
     display_metrics(results)
 
@@ -124,6 +140,21 @@ def run(config: RunConfig) -> List[EnvRunResult]:
 def agent_factory(
     tools_info: List[Dict[str, Any]], wiki, config: RunConfig
 ) -> Agent:
+    # Check if using local HuggingFace model
+    if config.model_provider == "local_hf":
+        if config.agent_strategy == "tool-calling":
+            from tau_bench.agents.local_hf_agent import LocalHFToolCallingAgent
+            return LocalHFToolCallingAgent(
+                tools_info=tools_info,
+                wiki=wiki,
+                model_path=config.model,
+                temperature=config.temperature,
+                perturbation_sigma=config.perturbation_sigma,
+            )
+        else:
+            raise ValueError(f"Agent strategy '{config.agent_strategy}' not yet supported for local_hf provider. Only 'tool-calling' is supported.")
+    
+    # Original API-based agents
     if config.agent_strategy == "tool-calling":
         # native tool calling
         from tau_bench.agents.tool_calling_agent import ToolCallingAgent

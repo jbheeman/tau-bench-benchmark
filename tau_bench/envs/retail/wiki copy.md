@@ -1,13 +1,3 @@
-## Evaluation Setup (Non-Interactive)
-
-This task is evaluated in a non-interactive setting.
-All user information required to complete the task is provided upfront
-in the initial task description or via available tools.
-
-The agent MUST NOT ask the user any clarifying questions.
-If required information is missing, the agent must fail gracefully
-according to policy rather than requesting additional input.
-
 # Retail agent policy
 
 As a retail agent, you can help users cancel or modify pending orders, return or exchange delivered orders, modify their default user address, or provide information about their own profile, orders, and related products.
@@ -89,10 +79,3 @@ As a retail agent, you can help users cancel or modify pending orders, return or
 - The user must provide a payment method to pay or receive refund of the price difference. If the user provides a gift card, it must have enough balance to cover the price difference.
 
 - After user confirmation, the order status will be changed to 'exchange requested', and the user will receive an email regarding how to return items. There is no need to place a new order.
-
-# Note 
-
-No human or simulated user is present during evaluation.
-The "user" referenced in this policy is an abstract task entity,
-not an interactive participant.
-

@@ -34,6 +34,31 @@ class HumanUserSimulationEnv(BaseUserSimulationEnv):
         return 0
 
 
+class DirectUserSimulationEnv(BaseUserSimulationEnv):
+    """Direct user strategy that returns the task instruction without simulation.
+    This bypasses user simulation and gives the agent the full task instruction upfront.
+    """
+    def __init__(self):
+        self.instruction: Optional[str] = None
+        self.current_step = 0
+    
+    def reset(self, instruction: Optional[str] = None) -> str:
+        self.instruction = instruction
+        self.current_step = 0
+        # Return the full instruction directly
+        return instruction or ""
+    
+    def step(self, content: str) -> str:
+        # For direct mode, return a simple continue signal
+        # The agent should be able to work with the full instruction from reset()
+        self.current_step += 1
+        # Return empty string or simple acknowledgment to continue
+        return ""
+    
+    def get_total_cost(self) -> float:
+        return 0.0
+
+
 class LLMUserSimulationEnv(BaseUserSimulationEnv):
     def __init__(self, model: str, provider: str) -> None:
         super().__init__()
@@ -315,6 +340,7 @@ class UserStrategy(enum.Enum):
     REACT = "react"
     VERIFY = "verify"
     REFLECTION = "reflection"
+    DIRECT = "direct"
 
 
 def load_user(
@@ -326,6 +352,8 @@ def load_user(
         user_strategy = UserStrategy(user_strategy)
     if user_strategy == UserStrategy.HUMAN:
         return HumanUserSimulationEnv()
+    elif user_strategy == UserStrategy.DIRECT:
+        return DirectUserSimulationEnv()
     elif user_strategy == UserStrategy.LLM:
         if model is None:
             raise ValueError("LLM user strategy requires a model")

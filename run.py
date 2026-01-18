@@ -21,8 +21,8 @@ def parse_args() -> RunConfig:
     parser.add_argument(
         "--model-provider",
         type=str,
-        choices=provider_list,
-        help="The model provider for the agent",
+        choices=list(provider_list) + ["local_hf"],
+        help="The model provider for the agent (use 'local_hf' for local HuggingFace models)",
     )
     parser.add_argument(
         "--user-model",
@@ -69,6 +69,8 @@ def parse_args() -> RunConfig:
     parser.add_argument("--shuffle", type=int, default=0)
     parser.add_argument("--user-strategy", type=str, default="llm", choices=[item.value for item in UserStrategy])
     parser.add_argument("--few-shot-displays-path", type=str, help="Path to a jsonlines file containing few shot displays")
+    parser.add_argument("--perturbation-sigma", type=float, default=0.01, help="Sigma for Gaussian perturbations on RMSNorm (only for local_hf provider)")
+    parser.add_argument("--attempt-id", type=str, help="Optional attempt ID to include in the output filename")
     args = parser.parse_args()
     print(args)
     return RunConfig(
@@ -90,6 +92,8 @@ def parse_args() -> RunConfig:
         shuffle=args.shuffle,
         user_strategy=args.user_strategy,
         few_shot_displays_path=args.few_shot_displays_path,
+        perturbation_sigma=args.perturbation_sigma,
+        attempt_id=args.attempt_id,
     )
 
 

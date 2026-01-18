@@ -1,13 +1,3 @@
-## Evaluation Setup (Non-Interactive)
-
-This task is evaluated in a non-interactive setting.
-All user information required to complete the task is provided upfront
-in the initial task description or via available tools.
-
-The agent MUST NOT ask the user any clarifying questions.
-If required information is missing, the agent must fail gracefully
-according to policy rather than requesting additional input.
-
 # Airline Agent Policy
 
 The current time is 2024-05-15 15:00:00 EST.
@@ -78,9 +68,3 @@ As an airline agent, you can help users book, modify, or cancel flight reservati
 - If the user is silver/gold member or has travel insurance or flies business, and complains about delayed flights in a reservation and wants to change or cancel the reservation, the agent can offer a certificate as a gesture after confirming the facts and changing or cancelling the reservation, with the amount being $50 times the number of passengers.
 
 - Do not proactively offer these unless the user complains about the situation and explicitly asks for some compensation. Do not compensate if the user is regular member and has no travel insurance and flies (basic) economy.
-
-# Note 
-
-No human or simulated user is present during evaluation.
-The "user" referenced in this policy is an abstract task entity,
-not an interactive participant.
