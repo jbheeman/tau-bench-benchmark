@@ -255,8 +255,8 @@ class LocalHFToolCallingAgent(Agent):
                     ]
                 )
             else:
-                if env_response.observation == '':
-                    break
+                # if env_response.observation == '':
+                #     break
                 messages.extend(
                     [
                         next_message,
