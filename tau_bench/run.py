@@ -59,8 +59,9 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     for i in range(config.num_trials):
         # Sample new perturbations for this trial (Best of N)
         # Skip bias sampling for the first attempt (i == 0)
+        chosen_sigma = 0.0
         if i > 0 and config.model_provider == "local_hf" and hasattr(agent, 'sample_perturbations'):
-            agent.sample_perturbations()
+            chosen_sigma = agent.sample_perturbations()
             print(f"Trial {i+1}/{config.num_trials}: Sampled new perturbations")
         elif i == 0 and config.model_provider == "local_hf":
             print(f"Trial {i+1}/{config.num_trials}: No bias sampling (first attempt)")
@@ -95,6 +96,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                     info=res.info,
                     traj=res.messages,
                     trial=i,
+                    perturbation_sigma=chosen_sigma,
                 )
             except Exception as e:
                 result = EnvRunResult(
@@ -103,6 +105,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                     info={"error": str(e), "traceback": traceback.format_exc()},
                     traj=[],
                     trial=i,
+                    perturbation_sigma=chosen_sigma,
                 )
             print(
                 "✅" if result.reward == 1 else "❌",

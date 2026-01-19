@@ -67,6 +67,7 @@ class EnvRunResult(BaseModel):
     info: Dict[str, Any]
     traj: List[Dict[str, Any]]
     trial: int
+    perturbation_sigma: float = 0.0
 
 
 class RunConfig(BaseModel):
