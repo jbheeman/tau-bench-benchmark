@@ -58,12 +58,12 @@ class LocalHFToolCallingAgent(Agent):
     def sample_perturbations(self):
         """Sample new perturbations for this trial."""
         if hasattr(self.model, 'sample_perturbations'):
-            PERTURBATION_SIGMA_MIN = 0.001
-            PERTURBATION_SIGMA_MAX = 0.13
+            PERTURBATION_SIGMA_MIN = 0.05
+            PERTURBATION_SIGMA_MAX = 0.2
             perturbation_sigma = self.perturbation_sigma
             # Sample perturbation sigma from log-uniform distribution
             sampled_sigma = 0.0
-            if perturbation_sigma > 0 and hasattr(self.model, 'create_perturbation_manager'):
+            if hasattr(self.model, 'create_perturbation_manager'):
                 # Log-uniform sampling: sample uniformly in log space
                 # log_min = math.log(PERTURBATION_SIGMA_MIN)
                 # log_max = math.log(PERTURBATION_SIGMA_MAX)
@@ -77,6 +77,7 @@ class LocalHFToolCallingAgent(Agent):
                 print(f"Created perturbation manager with sampled sigma={sampled_sigma:.6f} (from log-uniform range [{PERTURBATION_SIGMA_MIN}, {PERTURBATION_SIGMA_MAX}])")
             
             self.model.sample_perturbations()
+            print(sampled_sigma)
             return sampled_sigma
     
     def reset_perturbations(self):
