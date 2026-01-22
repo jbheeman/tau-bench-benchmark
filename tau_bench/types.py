@@ -90,4 +90,9 @@ class RunConfig(BaseModel):
     user_strategy: str = "llm"
     few_shot_displays_path: Optional[str] = None
     perturbation_sigma: float = 0.01
+    # If True (local_hf only), run Best-of-N by sampling a fresh random temperature per generation
+    # and do NOT apply any perturbation shift (i.e., never call agent.sample_perturbations()).
+    temperature_sampling_no_shift: bool = False
+    temperature_sampling_min: float = 0.01
+    temperature_sampling_max: float = 2.0
     attempt_id: Optional[str] = None

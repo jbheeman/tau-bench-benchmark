@@ -3,6 +3,7 @@
 import json
 import sys
 import os
+import random
 import torch
 import math
 from typing import List, Optional, Dict, Any
@@ -33,6 +34,10 @@ class LocalHFToolCallingAgent(Agent):
         self.model_path = model_path
         self.temperature = temperature
         self.perturbation_sigma = perturbation_sigma
+        self.temperature_sampling_no_shift_enabled = False
+        self.temperature_sampling_min = 0.01
+        self.temperature_sampling_max = 2.0
+        self.last_temperature: Optional[float] = None
         
         # Hardcoded range for perturbation sigma (log-uniform sampling)
 
@@ -78,6 +83,12 @@ class LocalHFToolCallingAgent(Agent):
         """Reset perturbations."""
         if hasattr(self.model, 'reset_perturbations'):
             self.model.reset_perturbations()
+
+    def set_temperature_sampling_no_shift(self, enabled: bool, t_min: float = 0.01, t_max: float = 2.0):
+        """Enable/disable no-shift temperature sampling for generation (no perturbation changes)."""
+        self.temperature_sampling_no_shift_enabled = enabled
+        self.temperature_sampling_min = float(t_min)
+        self.temperature_sampling_max = float(t_max)
     
     def _call_model(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Call the local model with messages and return the response message."""
@@ -119,13 +130,25 @@ class LocalHFToolCallingAgent(Agent):
         )
         inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
         
+        # Decide sampling settings
+        if self.temperature_sampling_no_shift_enabled:
+            # Randomize temperature per generation call.
+            t_min = min(self.temperature_sampling_min, self.temperature_sampling_max)
+            t_max = max(self.temperature_sampling_min, self.temperature_sampling_max)
+            temperature = random.uniform(t_min, t_max)
+            do_sample = True
+        else:
+            temperature = float(self.temperature)
+            do_sample = temperature > 0.0
+        self.last_temperature = temperature
+
         # Generate
         with torch.no_grad():
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=512,
-                temperature=0,
-                do_sample=False,
+                temperature=temperature,
+                do_sample=do_sample,
                 pad_token_id=self.tokenizer.eos_token_id,
             )
         

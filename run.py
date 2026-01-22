@@ -70,6 +70,23 @@ def parse_args() -> RunConfig:
     parser.add_argument("--user-strategy", type=str, default="llm", choices=[item.value for item in UserStrategy])
     parser.add_argument("--few-shot-displays-path", type=str, help="Path to a jsonlines file containing few shot displays")
     parser.add_argument("--perturbation-sigma", type=float, default=0.01, help="Sigma for Gaussian perturbations on RMSNorm (only for local_hf provider)")
+    parser.add_argument(
+        "--temperature-sampling-no-shift",
+        action="store_true",
+        help="(local_hf only) Use Best-of-N via random temperature sampling (no perturbation shift).",
+    )
+    parser.add_argument(
+        "--temperature-sampling-min",
+        type=float,
+        default=0.01,
+        help="Min temperature for --temperature-sampling-no-shift (uniform sampling).",
+    )
+    parser.add_argument(
+        "--temperature-sampling-max",
+        type=float,
+        default=2.0,
+        help="Max temperature for --temperature-sampling-no-shift (uniform sampling).",
+    )
     parser.add_argument("--attempt-id", type=str, help="Optional attempt ID to include in the output filename")
     args = parser.parse_args()
     print(args)
@@ -93,6 +110,9 @@ def parse_args() -> RunConfig:
         user_strategy=args.user_strategy,
         few_shot_displays_path=args.few_shot_displays_path,
         perturbation_sigma=args.perturbation_sigma,
+        temperature_sampling_no_shift=args.temperature_sampling_no_shift,
+        temperature_sampling_min=args.temperature_sampling_min,
+        temperature_sampling_max=args.temperature_sampling_max,
         attempt_id=args.attempt_id,
     )
 

@@ -5,9 +5,9 @@ import torch
 
 # tokenizer_name="Qwen/Qwen2.5-Coder-14B-Instruct"
 
-tokenizer_name="Qwen/Qwen3-14B"
+tokenizer_name="Qwen/Qwen3-8B"
 # model_name='/data/jesh/workspace/hagent_orchestration/swe-bench-experiments/open_weights/Qwen2.5-Coder-14B-Instruct'
-model_name='/data/jesh/swe-agent-benchmarking/open_weights/Qwen3-14B'
+model_name='/data/jesh/workspace/hagent_orchestration/swe-bench-experiments/open_weights/Qwen3-8B'
 
 # load the tokenizer and the model
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -43,13 +43,15 @@ if has_perturbation_support:
 responses = []
 
 # Helper function to generate a response
-def generate_response(use_perturbation=False):
+def generate_response(use_perturbation=False, temperature=0.0):
     """Generate a single response, optionally with perturbation."""
     if use_perturbation and has_perturbation_support and hasattr(base_model, "sample_perturbations"):
-        base_model.create_perturbation_manager(sigma=torch.empty(1).uniform_(0.001, 0.13).item())
+        sig = torch.empty(1).uniform_(0.17, 0.171).item()
+        base_model.create_perturbation_manager(sigma=sig)
         base_model.sample_perturbations()
     elif not use_perturbation and has_perturbation_support:
         # Ensure no perturbations for baseline
+        sig = 0.0
         if base_model.perturbation_manager is not None:
             base_model.perturbation_manager.reset()
     
@@ -57,24 +59,26 @@ def generate_response(use_perturbation=False):
     generated_ids = model.generate(
         **model_inputs,
         max_new_tokens=400,
-        do_sample=False,
-        temperature=0.0
+        do_sample=temperature > 0.0,
+        temperature=temperature
     )
     output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
-    return tokenizer.decode(output_ids, skip_special_tokens=True)
+    return tokenizer.decode(output_ids, skip_special_tokens=True), sig
 
 # Run baseline (no perturbation) if requested
 if include_baseline:
     print("Running baseline (no perturbations)...")
-    content = generate_response(use_perturbation=False)
-    responses.append(("baseline", content))
+    content, sig = generate_response(use_perturbation=False)
+    responses.append(("baseline", content, sig))
 
 # Run with perturbations
 for k in range(number_of_runs):
     print(f"Running with perturbation {k+1}/{number_of_runs}...")
-    content = generate_response(use_perturbation=True)
-    responses.append((f"perturbed_{k+1}", content))
-
+    content, sig = generate_response(use_perturbation=True, temperature=2.0)
+    responses.append((f"perturbed_{k+1}", content, sig))
+# so what you can do is choose a set of perturbations rather than just random -> from a range 
+# like 0.05, 0.1, 0.15, 0.2, 0.25, 0.3 -> rather than uniform -> sample N from each one from range and filter bad ones cheaply if possible
+# we can even make a self-practice algorithm for the training -> sample N attempts -> if they fail -> then do a shift away from the bad one's -> maybe you average the perturbation and set that as the new bias to perturb from?
 for label, resp in responses:
     print(f"\n=== {label.upper()} ===")
     print(resp)

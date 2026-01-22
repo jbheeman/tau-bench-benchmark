@@ -28,7 +28,12 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     random.seed(config.seed)
     time_str = datetime.now().strftime("%m%d%H%M%S")
     attempt_suffix = f"_attempt-{config.attempt_id}" if config.attempt_id else ""
-    ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}_range_{config.start_index}-{config.end_index}_user-{config.user_model}-{config.user_strategy}{attempt_suffix}_{time_str}.json"
+    temp_mode = (
+        f"_tempU-{config.temperature_sampling_min}-{config.temperature_sampling_max}"
+        if config.temperature_sampling_no_shift
+        else ""
+    )
+    ckpt_path = f"{config.log_dir}/{config.agent_strategy}-{config.model.split('/')[-1]}-{config.temperature}{temp_mode}_range_{config.start_index}-{config.end_index}_user-{config.user_model}-{config.user_strategy}{attempt_suffix}_{time_str}.json"
     if not os.path.exists(config.log_dir):
         os.makedirs(config.log_dir)
 
@@ -50,30 +55,55 @@ def run(config: RunConfig) -> List[EnvRunResult]:
     )
     results: List[EnvRunResult] = []
     lock = multiprocessing.Lock()
+    # Determine task IDs once (shuffled if needed)
+    idxs = list(range(len(env.tasks)))
+    if config.shuffle:
+        random.shuffle(idxs)
+    
     if config.task_ids and len(config.task_ids) > 0:
+        idxs = config.task_ids
         print(f"Running tasks {config.task_ids} (checkpoint path: {ckpt_path})")
     else:
+        idxs = idxs[config.start_index: end_index]
         print(
             f"Running tasks {config.start_index} to {end_index} (checkpoint path: {ckpt_path})"
-    )
-    for i in range(config.num_trials):
-        # Sample new perturbations for this trial (Best of N)
-        # Skip bias sampling for the first attempt (i == 0)
-        chosen_sigma = 0.0
-        if i > 0 and config.model_provider == "local_hf" and hasattr(agent, 'sample_perturbations'):
-            chosen_sigma = agent.sample_perturbations()
-            print(f"Trial {i+1}/{config.num_trials}: Sampled new perturbations")
-        elif i == 0 and config.model_provider == "local_hf":
-            print(f"Trial {i+1}/{config.num_trials}: No bias sampling (first attempt)")
-        
-        if config.task_ids and len(config.task_ids) > 0:
-            idxs = config.task_ids
-        else:
-            idxs = list(range(config.start_index, end_index))
-        if config.shuffle:
-            random.shuffle(idxs)
+        )
+    
+    # Run each task num_trials times
+    for idx in idxs:
+        for i in range(config.num_trials):
+            # Best-of-N trial setup: either sample perturbations (shift) OR sample temperature (no shift).
+            chosen_sigma = 0.0
+            if config.model_provider == "local_hf" and config.temperature_sampling_no_shift:
+                # Ensure no perturbation shift is active, and let the agent sample random temperature instead.
+                if hasattr(agent, "reset_perturbations"):
+                    agent.reset_perturbations()
+                if hasattr(agent, "set_temperature_sampling_no_shift"):
+                    # First trial (i == 0) always uses greedy decoding
+                    if i == 0:
+                        agent.set_temperature_sampling_no_shift(
+                            enabled=False,
+                            t_min=config.temperature_sampling_min,
+                            t_max=config.temperature_sampling_max,
+                        )
+                        print(f"Task {idx}, Trial {i+1}/{config.num_trials}: Greedy decoding (first trial, no perturbation shift)")
+                    else:
+                        agent.set_temperature_sampling_no_shift(
+                            enabled=True,
+                            t_min=config.temperature_sampling_min,
+                            t_max=config.temperature_sampling_max,
+                        )
+                        print(
+                            f"Task {idx}, Trial {i+1}/{config.num_trials}: Temperature sampling (no perturbation shift), "
+                            f"T~U[{config.temperature_sampling_min}, {config.temperature_sampling_max}]"
+                        )
+            # Sample new perturbations for this trial (Best of N); skip for first attempt (i == 0)
+            elif i > 0 and config.model_provider == "local_hf" and hasattr(agent, "sample_perturbations"):
+                chosen_sigma = agent.sample_perturbations()
+                print(f"Task {idx}, Trial {i+1}/{config.num_trials}: Sampled new perturbations")
+            elif i == 0 and config.model_provider == "local_hf":
+                print(f"Task {idx}, Trial {i+1}/{config.num_trials}: No bias sampling (first attempt)")
 
-        def _run(idx: int) -> EnvRunResult:
             isolated_env = get_env(
                 config.env,
                 user_strategy=config.user_strategy,
@@ -83,8 +113,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                 task_index=idx,
             )
 
-
-            print(f"Running task {idx}")
+            print(f"Running task {idx}, trial {i+1}")
             try:
                 res = agent.solve(
                     env=isolated_env,
@@ -120,17 +149,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                         data = json.load(f)
                 with open(ckpt_path, "w") as f:
                     json.dump(data + [result.model_dump()], f, indent=2)
-            return result
-
-        with ThreadPoolExecutor(max_workers=config.max_concurrency) as executor:
-            res = list(executor.map(_run, idxs))
-            results.extend(res)
-        
-        # Reset perturbations after trial completes (optional, for cleanup)
-        if config.model_provider == "local_hf" and hasattr(agent, 'reset_perturbations'):
-            # Don't reset here - we want to keep them for potential debugging
-            # agent.reset_perturbations()
-            pass
+            results.append(result)
 
     display_metrics(results)
 
