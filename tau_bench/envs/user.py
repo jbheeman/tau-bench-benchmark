@@ -53,7 +53,7 @@ class DirectUserSimulationEnv(BaseUserSimulationEnv):
         # The agent should be able to work with the full instruction from reset()
         self.current_step += 1
         # Return empty string or simple acknowledgment to continue
-        return "###STOP###"
+        return "Thanks for the update. Note, that all information is already provided to you in the instructions or can be found in the tools provided to you. Once your done with completing all the requests, just respond with ###STOP###."
     
     def get_total_cost(self) -> float:
         return 0.0

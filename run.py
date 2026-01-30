@@ -109,7 +109,7 @@ def parse_args() -> RunConfig:
         shuffle=args.shuffle,
         user_strategy=args.user_strategy,
         few_shot_displays_path=args.few_shot_displays_path,
-        perturbation_sigma=args.perturbation_sigma,
+        perturbation_sigma='0.01',
         temperature_sampling_no_shift=args.temperature_sampling_no_shift,
         temperature_sampling_min=args.temperature_sampling_min,
         temperature_sampling_max=args.temperature_sampling_max,

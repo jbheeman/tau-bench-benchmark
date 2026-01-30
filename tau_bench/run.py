@@ -98,7 +98,7 @@ def run(config: RunConfig) -> List[EnvRunResult]:
                             f"T~U[{config.temperature_sampling_min}, {config.temperature_sampling_max}]"
                         )
             # Sample new perturbations for this trial (Best of N); skip for first attempt (i == 0)
-            elif i > 0 and config.model_provider == "local_hf" and hasattr(agent, "sample_perturbations"):
+            elif i > 0 and config.model_provider == "local_hf" and hasattr(agent, "sample_perturbations"): # should be i > 0 so that first one is without perturbation
                 chosen_sigma = agent.sample_perturbations()
                 print(f"Task {idx}, Trial {i+1}/{config.num_trials}: Sampled new perturbations")
             elif i == 0 and config.model_provider == "local_hf":

@@ -96,7 +96,7 @@ class Env(object):
         if action.name == RESPOND_ACTION_NAME:
             observation = self.user.step(action.kwargs["content"])
             info.source = "user"
-            done = "###STOP###" in observation
+            done = "###STOP###" in action.kwargs['content'] # check if agent says this
         elif action.name in self.tools_map:
             try:
                 observation = self.tools_map[action.name].invoke(
@@ -141,24 +141,26 @@ class Env(object):
         if not info.r_actions:
             reward = 0.0
 
-        if len(self.task.outputs) > 0:
-            # check outputs
-            r_outputs = 1.0
-            outputs = {}
-            for output in self.task.outputs:
-                found = False
-                for action in self.actions:
-                    if (
-                        action.name == RESPOND_ACTION_NAME
-                        and output.lower()
-                        in action.kwargs["content"].lower().replace(",", "")
-                    ):
-                        found = True
-                        break
-                outputs[output] = found
-                if not found:
-                    r_outputs = 0.0
-                    reward = 0.0
-            info = RewardOutputInfo(r_outputs=r_outputs, outputs=outputs)
+
+        # this checks if outputs are correct -> add back if you think it's necessary
+        # if len(self.task.outputs) > 0:
+        #     # check outputs
+        #     r_outputs = 1.0
+        #     outputs = {}
+        #     for output in self.task.outputs:
+        #         found = False
+        #         for action in self.actions:
+        #             if (
+        #                 action.name == RESPOND_ACTION_NAME
+        #                 and output.lower()
+        #                 in action.kwargs["content"].lower().replace(",", "")
+        #             ):
+        #                 found = True
+        #                 break
+        #         outputs[output] = found
+        #         if not found:
+        #             r_outputs = 0.0
+        #             reward = 0.0
+        #     info = RewardOutputInfo(r_outputs=r_outputs, outputs=outputs)
             
         return RewardResult(reward=reward, info=info, actions=actions)

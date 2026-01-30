@@ -33,21 +33,27 @@ has_perturbation_support = (
     base_model is not None 
     and hasattr(base_model, "create_perturbation_manager")
 )
+query_sigma = 0.1
+weight_sigma = 0.000
 if has_perturbation_support:
     if getattr(base_model, "perturbation_manager", None) is None:
-        base_model.create_perturbation_manager(sigma=0.2)
+        base_model.create_perturbation_manager(activation_sigma=query_sigma, weight_sigma=None)
+
     
 
 # 0.01 to 1
 
 responses = []
 
+# 0.008
+
 # Helper function to generate a response
-def generate_response(use_perturbation=False, temperature=0.0):
+def generate_response(use_perturbation=False, temperature=2.0):
     """Generate a single response, optionally with perturbation."""
     if use_perturbation and has_perturbation_support and hasattr(base_model, "sample_perturbations"):
-        sig = torch.empty(1).uniform_(0.17, 0.171).item()
-        base_model.create_perturbation_manager(sigma=sig)
+        sig = torch.empty(1).uniform_(0.05, 0.2).item()
+        act_sig = torch.empty(1).uniform_(0.01, 0.015).item()
+        base_model.create_perturbation_manager(activation_sigma=None, weight_sigma=sig)
         base_model.sample_perturbations()
     elif not use_perturbation and has_perturbation_support:
         # Ensure no perturbations for baseline
@@ -74,7 +80,7 @@ if include_baseline:
 # Run with perturbations
 for k in range(number_of_runs):
     print(f"Running with perturbation {k+1}/{number_of_runs}...")
-    content, sig = generate_response(use_perturbation=True, temperature=2.0)
+    content, sig = generate_response(use_perturbation=True, temperature=0.0)
     responses.append((f"perturbed_{k+1}", content, sig))
 # so what you can do is choose a set of perturbations rather than just random -> from a range 
 # like 0.05, 0.1, 0.15, 0.2, 0.25, 0.3 -> rather than uniform -> sample N from each one from range and filter bad ones cheaply if possible

@@ -73,7 +73,7 @@ class LocalHFToolCallingAgent(Agent):
                 sampled_sigma = log_sampled
                 print(sampled_sigma)
                 
-                self.model.create_perturbation_manager(sigma=sampled_sigma)
+                self.model.create_perturbation_manager(activation_sigma=None, weight_sigma=sampled_sigma)
                 print(f"Created perturbation manager with sampled sigma={sampled_sigma:.6f} (from log-uniform range [{PERTURBATION_SIGMA_MIN}, {PERTURBATION_SIGMA_MAX}])")
             
             self.model.sample_perturbations()
@@ -260,6 +260,8 @@ class LocalHFToolCallingAgent(Agent):
                 )
             
             env_response = env.step(action)
+            if env_response.done:
+                pass
             reward = env_response.reward
             info = {**info, **env_response.info.model_dump()}
             
